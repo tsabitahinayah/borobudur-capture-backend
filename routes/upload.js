@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { containerClient } = require('../config/azure');
+const Session = require('../models/Session');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -25,16 +26,19 @@ const upload = multer({ storage });
 // Upload image endpoint
 router.post('/image', upload.single('file'), async (req, res) => {
   try {
-    const { photo_id, session_id } = req.body;
+    const { photo_id } = req.body;
     
     // Validate required fields
-    if (!photo_id || !session_id || !req.file) {
+    if (!photo_id || !req.file) {
       return res.status(400).json({ 
         status: 'error', 
-        message: 'Missing required fields: photo_id, session_id, or file' 
+        message: 'Missing required fields: photo_id or file' 
       });
     }
 
+    // Get the next session ID for current photo session
+    const sessionInfo = await Session.getNextSessionId();
+    const session_id = sessionInfo.nextSessionId;
     const blobPath = `${session_id}/images/${photo_id}.jpg`;
     const filePath = req.file.path;
     const fileContent = fs.readFileSync(filePath);
@@ -53,6 +57,7 @@ router.post('/image', upload.single('file'), async (req, res) => {
     res.status(200).json({
       status: 'success',
       photo_id,
+      session_id,
       path: blobPath
     });
   } catch (error) {
@@ -68,18 +73,24 @@ router.post('/image', upload.single('file'), async (req, res) => {
 // Upload metadata endpoint
 router.post('/meta', async (req, res) => {
   try {
-    const { photo_id, session_id, side_flag, bend, timestamp } = req.body;
+    const { photo_id, side_flag, bend, timestamp } = req.body;
     
     // Validate required fields
-    if (!photo_id || !session_id || !side_flag || !bend || !timestamp) {
+    if (!photo_id || !side_flag || !bend || !timestamp) {
       return res.status(400).json({ 
         status: 'error', 
         message: 'Missing required fields in metadata' 
       });
     }
 
+    // Get the next session ID for current photo session
+    const sessionInfo = await Session.getNextSessionId();
+    const session_id = sessionInfo.nextSessionId;
     const blobPath = `${session_id}/metadata/${photo_id}.json`;
-    const metadataContent = JSON.stringify(req.body);
+    
+    // Add session_id to metadata
+    const metadataWithSession = { ...req.body, session_id };
+    const metadataContent = JSON.stringify(metadataWithSession);
     
     // Get a block blob client
     const blockBlobClient = containerClient.getBlockBlobClient(blobPath);
@@ -92,6 +103,7 @@ router.post('/meta', async (req, res) => {
     res.status(200).json({
       status: 'success',
       photo_id,
+      session_id,
       path: blobPath
     });
   } catch (error) {

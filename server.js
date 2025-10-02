@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const connectDB = require('./config/mongodb');
 const uploadRoutes = require('./routes/upload');
 const sessionRoutes = require('./routes/session');
 const errorHandler = require('./middleware/errorHandler');
@@ -9,6 +10,9 @@ require('./config/azure'); // Initialize Azure Blob Storage
 
 // Load environment variables
 dotenv.config();
+
+// Connect to MongoDB
+connectDB();
 
 // Initialize Express app
 const app = express();

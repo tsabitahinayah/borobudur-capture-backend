@@ -4,6 +4,71 @@ const { containerClient } = require('../config/azure');
 const archiver = require('archiver');
 const fs = require('fs');
 const path = require('path');
+const Session = require('../models/Session');
+
+// GET current session status - for STM robot to know the last completed session
+router.get('/current', async (req, res) => {
+  try {
+    const lastCompletedSession = await Session.getLastCompletedSession();
+    
+    if (!lastCompletedSession) {
+      // First time - no sessions completed yet
+      res.status(200).json({
+        status: 'success',
+        message: 'No previous sessions found - this is the first session',
+        data: {
+          last_completed_session: null,
+          next_session_id: 'session_001',
+          is_first_session: true
+        }
+      });
+    } else {
+      // Previous session exists
+      const sessionInfo = await Session.getNextSessionId();
+      res.status(200).json({
+        status: 'success',
+        message: 'Last completed session retrieved successfully',
+        data: {
+          last_completed_session: lastCompletedSession.sessionId,
+          completed_at: lastCompletedSession.completedAt,
+          next_session_id: sessionInfo.nextSessionId,
+          is_first_session: false
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error getting current session status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to retrieve current session status',
+      error: error.message
+    });
+  }
+});
+
+// POST end session - create completed session record in MongoDB
+router.post('/end', async (req, res) => {
+  try {
+    const completedSession = await Session.completeSession();
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Session completed and recorded successfully',
+      data: {
+        completed_session_id: completedSession.sessionId,
+        completed_at: completedSession.completedAt,
+        status: completedSession.status
+      }
+    });
+  } catch (error) {
+    console.error('Error completing session:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to complete session',
+      error: error.message
+    });
+  }
+});
 
 // Session status endpoint
 router.get('/status/:session_id', async (req, res) => {
