@@ -1,0 +1,144 @@
+const express = require('express');
+const router = express.Router();
+const { containerClient } = require('../config/azure');
+const archiver = require('archiver');
+const fs = require('fs');
+const path = require('path');
+
+// Session status endpoint
+router.get('/status/:session_id', async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    
+    // List all blobs in the session
+    const imagePrefix = `${session_id}/images/`;
+    const metadataPrefix = `${session_id}/metadata/`;
+    
+    const images = [];
+    const metadata = [];
+    
+    // Collect all images
+    for await (const blob of containerClient.listBlobsFlat({ prefix: imagePrefix })) {
+      images.push(blob.name);
+    }
+    
+    // Collect all metadata
+    for await (const blob of containerClient.listBlobsFlat({ prefix: metadataPrefix })) {
+      metadata.push(blob.name);
+    }
+    
+    // Check for consistency
+    const imageIds = images.map(name => path.basename(name, '.jpg'));
+    const metadataIds = metadata.map(name => path.basename(name, '.json'));
+    
+    const missingMetadata = imageIds.filter(id => !metadataIds.includes(id));
+    const missingImages = metadataIds.filter(id => !imageIds.includes(id));
+    
+    const isConsistent = missingMetadata.length === 0 && missingImages.length === 0;
+    
+    res.status(200).json({
+      status: 'success',
+      session_id,
+      image_count: images.length,
+      metadata_count: metadata.length,
+      is_consistent: isConsistent,
+      missing_metadata: missingMetadata,
+      missing_images: missingImages
+    });
+  } catch (error) {
+    console.error('Error checking session status:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to check session status',
+      error: error.message
+    });
+  }
+});
+
+// Session download endpoint
+router.get('/download/:session_id', async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    
+    // Create temporary directory for downloads
+    const tempDir = path.join(__dirname, '../temp', session_id);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    // Create subdirectories
+    const imagesDir = path.join(tempDir, 'images');
+    const metadataDir = path.join(tempDir, 'metadata');
+    
+    if (!fs.existsSync(imagesDir)) {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(metadataDir)) {
+      fs.mkdirSync(metadataDir, { recursive: true });
+    }
+    
+    // List all blobs in the session
+    const imagePrefix = `${session_id}/images/`;
+    const metadataPrefix = `${session_id}/metadata/`;
+    
+    // Download all images
+    for await (const blob of containerClient.listBlobsFlat({ prefix: imagePrefix })) {
+      const fileName = path.basename(blob.name);
+      const filePath = path.join(imagesDir, fileName);
+      
+      const blockBlobClient = containerClient.getBlockBlobClient(blob.name);
+      await blockBlobClient.downloadToFile(filePath);
+    }
+    
+    // Download all metadata
+    for await (const blob of containerClient.listBlobsFlat({ prefix: metadataPrefix })) {
+      const fileName = path.basename(blob.name);
+      const filePath = path.join(metadataDir, fileName);
+      
+      const blockBlobClient = containerClient.getBlockBlobClient(blob.name);
+      await blockBlobClient.downloadToFile(filePath);
+    }
+    
+    // Create zip file
+    const zipPath = path.join(__dirname, '../temp', `${session_id}.zip`);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+    
+    // Pipe archive to output file
+    archive.pipe(output);
+    
+    // Add files to archive
+    archive.directory(tempDir, session_id);
+    
+    // Finalize archive
+    await archive.finalize();
+    
+    // Wait for output stream to finish
+    await new Promise((resolve) => {
+      output.on('close', resolve);
+    });
+    
+    // Send zip file
+    res.download(zipPath, `${session_id}.zip`, (err) => {
+      if (err) {
+        console.error('Error sending zip file:', err);
+      }
+      
+      // Clean up temporary files
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.unlinkSync(zipPath);
+    });
+  } catch (error) {
+    console.error('Error downloading session:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to download session',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;
