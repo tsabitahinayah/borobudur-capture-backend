@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { containerClient } = require('../config/azure');
+const { getContainerClient } = require('../config/azure');
 const archiver = require('archiver');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const Session = require('../models/Session');
 
 // GET current session status - for STM robot to know the last completed session
@@ -74,6 +75,7 @@ router.post('/end', async (req, res) => {
 router.get('/status/:session_id', async (req, res) => {
   try {
     const { session_id } = req.params;
+    const containerClient = await getContainerClient();
     
     // List all blobs in the session
     const imagePrefix = `${session_id}/images/`;
@@ -124,9 +126,14 @@ router.get('/status/:session_id', async (req, res) => {
 router.get('/download/:session_id', async (req, res) => {
   try {
     const { session_id } = req.params;
+    const containerClient = await getContainerClient();
     
-    // Create temporary directory for downloads
-    const tempDir = path.join(__dirname, '../temp', session_id);
+    // Create temporary directory for downloads in writable tmp
+    const baseTmp = path.join(os.tmpdir(), 'borobudur-temp');
+    if (!fs.existsSync(baseTmp)) {
+      fs.mkdirSync(baseTmp, { recursive: true });
+    }
+    const tempDir = path.join(baseTmp, session_id);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -166,7 +173,7 @@ router.get('/download/:session_id', async (req, res) => {
     }
     
     // Create zip file
-    const zipPath = path.join(__dirname, '../temp', `${session_id}.zip`);
+    const zipPath = path.join(baseTmp, `${session_id}.zip`);
     const output = fs.createWriteStream(zipPath);
     const archive = archiver('zip', {
       zlib: { level: 9 } // Maximum compression

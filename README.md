@@ -34,6 +34,7 @@ The system uses a completion-based session tracking approach:
 - Node.js (v14+)
 - MongoDB Database (local or cloud)
 - Azure Storage Account
+- Vercel account (for deployment)
 
 ### Installation
 
@@ -88,6 +89,33 @@ The server will automatically:
 - Connect to MongoDB
 - Create the session collection if it doesn't exist
 - Ready to track completed sessions (no initial records created)
+
+### Deploying to Vercel
+
+1. Install Vercel CLI (optional):
+```
+npm install -g vercel
+```
+
+2. Deploy using Vercel CLI:
+```
+vercel
+```
+
+3. Or deploy via Vercel Dashboard:
+   - Connect your GitHub repository to Vercel
+   - Import the project
+   - Configure the following environment variables in Vercel:
+     - `MONGODB_URI`: Your MongoDB connection string
+     - `AZURE_STORAGE_CONNECTION_STRING`: Your Azure Storage connection string
+     - `AZURE_STORAGE_CONTAINER_NAME`: Your Azure container name
+   - Deploy the project
+
+4. Troubleshooting Vercel Deployment:
+   - Ensure all environment variables are correctly set in Vercel dashboard
+   - Check that MongoDB Atlas allows connections from Vercel's IP addresses
+   - Verify Azure Storage account has proper permissions
+   - Review Vercel logs for specific error messages
 
 ## API Endpoints
 

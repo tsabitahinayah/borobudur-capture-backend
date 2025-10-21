@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { containerClient } = require('../config/azure');
+const { getContainerClient } = require('../config/azure');
 const Session = require('../models/Session');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 
 // Configure multer for temporary file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const tempDir = path.join(__dirname, '../temp');
+    const tempDir = path.join(os.tmpdir(), 'borobudur-temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -35,6 +36,9 @@ router.post('/image', upload.single('file'), async (req, res) => {
         message: 'Missing required fields: photo_id or file' 
       });
     }
+
+    // Ensure container client is ready
+    const containerClient = await getContainerClient();
 
     // Get the next session ID for current photo session
     const sessionInfo = await Session.getNextSessionId();
@@ -82,6 +86,9 @@ router.post('/meta', async (req, res) => {
         message: 'Missing required fields in metadata' 
       });
     }
+
+    // Ensure container client is ready
+    const containerClient = await getContainerClient();
 
     // Get the next session ID for current photo session
     const sessionInfo = await Session.getNextSessionId();
