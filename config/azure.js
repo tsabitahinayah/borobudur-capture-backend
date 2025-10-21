@@ -26,10 +26,10 @@ const initializeContainer = async () => {
   }
 };
 
-// Initialize container when this module is imported
-initializeContainer();
+// Don't initialize immediately - will be called on demand
 
 module.exports = {
   blobServiceClient,
-  containerClient
+  containerClient,
+  initializeContainer
 };

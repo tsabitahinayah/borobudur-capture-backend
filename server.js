@@ -30,7 +30,8 @@ app.use(async (req, res, next) => {
     
     // Initialize Azure on first request
     if (!azureInitialized) {
-      require('./config/azure');
+      const { initializeContainer } = require('./config/azure');
+      await initializeContainer();
       azureInitialized = true;
     }
     next();
