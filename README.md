@@ -38,13 +38,13 @@ The system uses a completion-based session tracking approach:
 
 ### Installation
 
-1. Clone the repository
-2. Install dependencies:
+**1. Clone the repository**
+**2. Install dependencies:**
 ```
 npm install
 ```
 
-3. Configure environment variables in `.env` file:
+**3. Configure environment variables in `.env` file:**
 ```
 # Server Configuration
 PORT=3000
@@ -57,7 +57,7 @@ AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=yours
 AZURE_STORAGE_CONTAINER_NAME=borobudur-capture
 ```
 
-4. Set up MongoDB:
+**4. Set up MongoDB:**
 
 **Option A: Local MongoDB Installation**
 - Install MongoDB Community Edition
@@ -75,7 +75,7 @@ AZURE_STORAGE_CONTAINER_NAME=borobudur-capture
 docker run -d -p 27017:27017 --name mongodb mongo:latest
 ```
 
-5. Start the server:
+**5. Start the server:**
 ```
 npm start
 ```
@@ -212,22 +212,10 @@ Body:
 }
 ```
 
-Notes:
+**Note**:
 - `session_id` is provided by the STM and is used directly for storage pathing.
 - `group_id` (string) groups images captured on the same wall before the robot turns; when the robot turns to the next wall, subsequent images use a new `group_id`.
 - Only the specified fields are stored in the metadata JSON in Azure Blob Storage.
-
-Response:
-```json
-{
-  "status": "success",
-  "photo_id": "001",
-  "session_id": "session_001",
-  "path": "session_001/metadata/001.json"
-}
-```
-
-**Note**: `session_id` is automatically determined from the next session sequence.
 
 Response:
 ```json
