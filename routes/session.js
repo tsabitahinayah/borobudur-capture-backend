@@ -74,7 +74,17 @@ router.post('/end', async (req, res) => {
 // Session status endpoint
 router.get('/status/:session_id', async (req, res) => {
   try {
-    const { session_id } = req.params;
+    const rawSessionId = req.params.session_id;
+    const session_id = decodeURIComponent(String(rawSessionId)).trim();
+
+    // Reject placeholder syntax like ":session_id" and empty values
+    if (!session_id || session_id.includes(':')) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid session_id. Use the actual value, e.g., GET /session/status/session_003'
+      });
+    }
+
     const containerClient = await getContainerClient();
     
     // List all blobs in the session
@@ -94,8 +104,8 @@ router.get('/status/:session_id', async (req, res) => {
       metadata.push(blob.name);
     }
     
-    // Check for consistency
-    const imageIds = images.map(name => path.basename(name, '.jpg'));
+    // Check for consistency (.jpg and .jpeg supported)
+    const imageIds = images.map(name => path.basename(name).replace(/\.(jpg|jpeg)$/i, ''));
     const metadataIds = metadata.map(name => path.basename(name, '.json'));
     
     const missingMetadata = imageIds.filter(id => !metadataIds.includes(id));
