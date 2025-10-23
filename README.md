@@ -206,10 +206,24 @@ Content-Type: application/json
 
 Body:
 {
-  "photo_id": "0007",
-  "side_flag": "west",
-  "bend": "inward",
-  "timestamp": "2025-09-15T09:35:22Z"
+  "photo_id": "001",
+  "session_id": "session_001",
+  "group_id": "2"
+}
+```
+
+Notes:
+- `session_id` is provided by the STM and is used directly for storage pathing.
+- `group_id` (string) groups images captured on the same wall before the robot turns; when the robot turns to the next wall, subsequent images use a new `group_id`.
+- Only the specified fields are stored in the metadata JSON in Azure Blob Storage.
+
+Response:
+```json
+{
+  "status": "success",
+  "photo_id": "001",
+  "session_id": "session_001",
+  "path": "session_001/metadata/001.json"
 }
 ```
 

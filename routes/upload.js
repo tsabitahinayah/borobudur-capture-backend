@@ -77,26 +77,24 @@ router.post('/image', upload.single('file'), async (req, res) => {
 // Upload metadata endpoint
 router.post('/meta', async (req, res) => {
   try {
-    const { photo_id, side_flag, bend, timestamp } = req.body;
+    const { photo_id, session_id, group_id } = req.body;
     
     // Validate required fields
-    if (!photo_id || !side_flag || !bend || !timestamp) {
+    if (!photo_id || !session_id || typeof group_id === 'undefined') {
       return res.status(400).json({ 
         status: 'error', 
-        message: 'Missing required fields in metadata' 
+        message: 'Missing required fields: photo_id, session_id, group_id' 
       });
     }
 
     // Ensure container client is ready
     const containerClient = await getContainerClient();
 
-    // Get the next session ID for current photo session
-    const sessionInfo = await Session.getNextSessionId();
-    const session_id = sessionInfo.nextSessionId;
+    // Use provided session_id directly from STM
     const blobPath = `${session_id}/metadata/${photo_id}.json`;
     
-    // Add session_id to metadata
-    const metadataWithSession = { ...req.body, session_id };
+    // Persist only the required fields as specified (group_id stored as string)
+    const metadataWithSession = { photo_id, session_id, group_id: String(group_id) };
     const metadataContent = JSON.stringify(metadataWithSession);
     
     // Get a block blob client
